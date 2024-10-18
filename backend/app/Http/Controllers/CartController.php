@@ -16,7 +16,7 @@ class CartController extends Controller
     {
         try {
             $user = auth()->user();
-            $cartItems = Cart::where('user_id', $user->id)->get();
+            $cartItems = Cart::where('user_id', $user->id)->with('product')->get();
             return $this->successResponse($cartItems, 'Cart items fetched successfully');
         } catch (Exception $e) {
             return $this->errorResponse($e->getMessage(), 500);
@@ -35,12 +35,22 @@ class CartController extends Controller
             $product = Product::find($request->product_id);
             $totalPrice = $product->price * $request->quantity;
 
-            $cartItem = Cart::create([
-                'user_id' => auth()->id(),
-                'product_id' => $request->product_id,
-                'quantity' => $request->quantity,
-                'total_price' => $totalPrice
-            ]);
+            $cartItem = Cart::where('user_id', auth()->id())
+                ->where('product_id', $request->product_id)
+                ->first();
+
+            if ($cartItem) {
+                $cartItem->quantity += $request->quantity;
+                $cartItem->total_price += $totalPrice;
+                $cartItem->save();
+            } else {
+                $cartItem = Cart::create([
+                    'user_id' => auth()->id(),
+                    'product_id' => $request->product_id,
+                    'quantity' => $request->quantity,
+                    'total_price' => $totalPrice
+                ]);
+            }
 
             return $this->successResponse(['message' => 'Product added to cart', 'cartItem' => $cartItem], 201);
         } catch (Exception $e) {

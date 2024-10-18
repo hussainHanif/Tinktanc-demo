@@ -13,12 +13,12 @@ use Illuminate\Support\Facades\DB;
 class OrderController extends Controller
 {
     use ApiResponseTrait;
-    // Display all orders for the authenticated customer
+    // Display all orders for the authenticated customer in descending order
     public function index()
     {
         try {
             $user = auth()->user();
-            $orders = Order::where('user_id', $user->id)->get();
+            $orders = Order::where('user_id', $user->id)->with(['orderItems', 'orderItems.product', 'user'])->orderBy('created_at', 'desc')->get();
             return $this->successResponse($orders, 'Orders fetched successfully');
         } catch (Exception $e) {
             return $this->errorResponse($e->getMessage(), 500);
@@ -69,7 +69,7 @@ class OrderController extends Controller
     {
         try {
             $request->validate([
-                'status' => 'required|string|in:pending,completed,canceled'
+                'status' => 'required|string|in:pending,completed,shipped,canceled'
             ]);
 
             $order->status = $request->status;
@@ -92,13 +92,12 @@ class OrderController extends Controller
         }
     }
 
-    protected function successResponse($data, $message, $statusCode = 200)
-    {
-        return response()->json(['message' => $message, 'data' => $data], $statusCode);
-    }
-
-    protected function errorResponse($message, $statusCode, $error = null)
-    {
-        return response()->json(['message' => $message, 'error' => $error], $statusCode);
+    public function getAllCustomersOrder() {
+        try {
+            $orders = Order::with(['orderItems', 'orderItems.product', 'user'])->orderBy('created_at', 'desc')->get();
+            return $this->successResponse($orders, 'Orders fetched successfully');
+        } catch (Exception $e) {
+            return $this->errorResponse($e->getMessage(), 500);
+        }
     }
 }
